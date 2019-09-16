@@ -1,0 +1,25 @@
+{
+    "version": "2.2.0",
+    "tasks": [
+        {
+            "label": "build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/BlockRPGBackend.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/BlockRPGBackend.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}
