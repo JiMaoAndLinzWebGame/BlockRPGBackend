@@ -45,6 +45,8 @@ namespace BlockRPGBackend.Modules
         {
             get
             {
+                if (_Cells == null) return null;
+                if (_Cells.Length <= 0) return null;
                 return JsonConvert.DeserializeObject<Cell[][]>(_Cells);
             }
             set
@@ -52,6 +54,7 @@ namespace BlockRPGBackend.Modules
                 _Cells = JsonConvert.SerializeObject(value);
             }
         }
+        // */
 
         /// <summary>
         /// 坐标_X

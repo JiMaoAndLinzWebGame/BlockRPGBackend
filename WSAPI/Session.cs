@@ -84,7 +84,7 @@ namespace BlockRPGBackend.WSAPI
             {
                 var buff = new ArraySegment<byte>(new byte[1024 * 1024 * 1]);//1M缓冲区
                 var result = await _WS.ReceiveAsync(buff, CancellationTokenSource.Token);
-                if (result.MessageType != WebSocketMessageType.Text) return;
+                if (result.MessageType != WebSocketMessageType.Text) continue;
                 var msg = Encoding.UTF8.GetString(buff.Array).Trim();
                 var msgbase = JsonConvert.DeserializeObject<Messages.MessageBase>(msg);
                 switch (msgbase.MessageType)
@@ -103,31 +103,37 @@ namespace BlockRPGBackend.WSAPI
                                 newblock.MapId = param.MapID;
                                 newblock.X = x;
                                 newblock.Y = y;
-                                newblock.Cells = new Modules.Cell[22][];
-                                for (int cellsx = 0; cellsx < newblock.Cells.Length; cellsx++)
+                                var cells = new Modules.Cell[22][];
+
+                                for (int cellsx = 0; cellsx < cells.Length; cellsx++)
                                 {
-                                    var cells = new Modules.Cell[14];
-                                    for (int cellsy = 0; cellsy < cells.Length; cellsy++)
+                                    cells[cellsx] = new Modules.Cell[14];
+                                    for (int cellsy = 0; cellsy < cells[cellsx].Length; cellsy++)
                                     {
-                                        cells[cellsy] = new Modules.Cell();
-                                        cells[cellsy].X = cellsx;
-                                        cells[cellsy].Y = cellsy;
-                                        cells[cellsy].ResID = _Ran.Next(0, 2);//随机生成方块类型
+                                        cells[cellsx][cellsy] = new Modules.Cell();
+                                        cells[cellsx][cellsy].X = cellsx;
+                                        cells[cellsx][cellsy].Y = cellsy;
+                                        cells[cellsx][cellsy].ResID = _Ran.Next(0, 2);//随机生成方块类型
                                     }
-                                    newblock.Cells[cellsx] = cells;
                                 }
+                                newblock.Cells = cells;
                                 _DbContext.Blocks.Add(newblock);//.State==Microsoft.EntityFrameworkCore.EntityState.Added;
                                 blocks.Add(newblock);
                             }
                         }
                         _DbContext.SaveChanges();
+
                         #endregion 
+                        var messageresult = new Messages.MessageBase();
+                        messageresult.MessageType = Enums.MessageType.queryBlocks;
+                        messageresult.Params = JsonConvert.SerializeObject(blocks);
+                        await _WS.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(messageresult))), WebSocketMessageType.Text, true, CancellationTokenSource.Token);
                         break;
                     #endregion
                     default://默认
                         break;
                 }
-            }
+            }//End While
         }
     }//End class
 }
