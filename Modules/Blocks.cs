@@ -37,7 +37,7 @@ namespace BlockRPGBackend.Modules
         private string _Cells { get; set; }
 
         /// <summary>
-        /// 区块里的格子数据_Cells 20*12 个 排列方式:[x][y]
+        /// 区块里的格子数据_Cells 22*14 个 排列方式:[x][y]
         /// </summary>
         /// <value></value>
         [NotMapped]

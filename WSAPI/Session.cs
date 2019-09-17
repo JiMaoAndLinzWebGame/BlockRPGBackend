@@ -103,13 +103,13 @@ namespace BlockRPGBackend.WSAPI
                                 newblock.MapId = param.MapID;
                                 newblock.X = x;
                                 newblock.Y = y;
-                                newblock.Cells = new Modules.Cell[20][];
+                                newblock.Cells = new Modules.Cell[22][];
                                 for (int cellsx = 0; cellsx < newblock.Cells.Length; cellsx++)
                                 {
-                                    var cells = new Modules.Cell[12];
+                                    var cells = new Modules.Cell[14];
                                     for (int cellsy = 0; cellsy < cells.Length; cellsy++)
                                     {
-                                        cells[cellsy]=new Modules.Cell();
+                                        cells[cellsy] = new Modules.Cell();
                                         cells[cellsy].X = cellsx;
                                         cells[cellsy].Y = cellsy;
                                         cells[cellsy].ResID = _Ran.Next(0, 2);//随机生成方块类型

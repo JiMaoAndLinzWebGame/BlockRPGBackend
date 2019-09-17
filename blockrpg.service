@@ -1,0 +1,13 @@
+[Unit]
+Description=BlockRPG
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/dotnet run -c release --project /home/BlockRPG/
+WorkingDirectory=/home/BlockRPG/
+restart=always
+Environment=DOTNET_CLI_HOME=/tmp
+Environment=ASPNETCORE_ENVIRONMENT=RELEASE
+
+[Install]
+WantedBy=multi-user.target
