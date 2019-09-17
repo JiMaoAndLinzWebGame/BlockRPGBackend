@@ -7,9 +7,8 @@ using Microsoft.EntityFrameworkCore;
 namespace BlockRPGBackend.Modules
 {
     /// <summary>
-    /// 订单
+    /// 用户
     /// </summary>
-
     [Table("users")]
     public class Users
     {
@@ -45,8 +44,16 @@ namespace BlockRPGBackend.Modules
         /// </summary>
         /// <value></value>
         [StringLength(maximumLength: 16)]
-        [Column("password")]
+        [Column("registerip")]
         public string RegisterIP { get; set; }
+
+        /// <summary>
+        /// token
+        /// </summary>
+        /// <value></value>
+        [StringLength(maximumLength: 32)]
+        [Column("token")]
+        public string Token { get; set; }
 
         /// <summary>
         /// 金额
@@ -75,5 +82,5 @@ namespace BlockRPGBackend.Modules
         /// <value></value>
         [Column("status")]
         public byte status { get; set; }
-    }
+    }//End Class
 }

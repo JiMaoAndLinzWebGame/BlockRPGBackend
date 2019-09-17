@@ -28,6 +28,12 @@ namespace BlockRPGBackend.APIModules
         /// </summary>
         /// <value></value>
         public decimal Amount { get; set; }
+
+        /// <summary>
+        /// Token
+        /// </summary>
+        /// <value></value>
+        public string Token { get; set; }
     }
 
 }

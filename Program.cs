@@ -12,7 +12,8 @@ using Microsoft.Extensions.Logging;
 namespace BlockRPGBackend
 {
     /// <summary>
-    /// 
+    /// 测试地址: http://127.0.0.1:3012/swager/
+    /// ws地址: ws://127.0.0.1:3012/ws
     /// </summary>
     public class Program
     {
@@ -25,8 +26,8 @@ namespace BlockRPGBackend
             /*
             using (var context = new MyDbContext())
             {
-                var order = new Modules.Order { Code = "http://sample.com" };
-                context.Order.Add(order);
+                var obj = new Modules.Users { UserName = "测试", Password = "123456", };
+                context.Users.Add(obj);
                 context.SaveChanges();
             }
             // */
@@ -40,7 +41,7 @@ namespace BlockRPGBackend
         /// <returns></returns>
         public static IWebHostBuilder CreateWebHostBuilder(string[] args)
         {
-            var netenviroment=Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            var netenviroment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
             var config = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile($"appsettings.{netenviroment}.json", optional: true)
