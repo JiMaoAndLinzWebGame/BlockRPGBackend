@@ -32,6 +32,15 @@ namespace BlockRPGBackend.Modules
         public string UserName { get; set; }
 
         /// <summary>
+        /// 邮箱地址
+        /// </summary>
+        /// <value></value>
+        [StringLength(maximumLength: 128)]
+        [Required]
+        [Column("email")]
+        public string Email { get; set; }
+
+        /// <summary>
         /// 密码
         /// </summary>
         /// <value></value>
@@ -59,7 +68,7 @@ namespace BlockRPGBackend.Modules
         /// 金额
         /// </summary>
         /// <value></value>
-        [Column("amount")]
+        [Column("amount", TypeName = "decimal(8, 2)")]
         public decimal Amount { get; set; }
 
         /// <summary>

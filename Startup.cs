@@ -54,6 +54,19 @@ namespace BlockRPGBackend
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new Info { Title = "My API", Version = "v1" });
+                /*
+                // Enable Swagger examples
+                c.OperationFilter<ExamplesOperationFilter>();
+
+                // Enable swagger descriptions
+                c.OperationFilter<DescriptionOperationFilter>();
+
+                // Enable swagger response headers
+                c.OperationFilter<AddResponseHeadersFilter>();
+
+                // Add (Auth) to action summary
+                c.OperationFilter<AppendAuthorizeToSummaryOperationFilter>();
+                // */
                 c.IncludeXmlComments(xmlpath);
             });
             #endregion
@@ -73,7 +86,11 @@ namespace BlockRPGBackend
 
             #region Swagger
             app.UseSwagger();
-            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1"));//配置Swagger
+            app.UseSwaggerUI(
+                c =>
+                {
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+                });//配置Swagger
             #endregion 
 
             #region 构建数据库上下文实例
