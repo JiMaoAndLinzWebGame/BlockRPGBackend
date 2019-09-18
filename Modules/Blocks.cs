@@ -32,9 +32,9 @@ namespace BlockRPGBackend.Modules
         /// 
         /// </summary>
         /// <value></value>
-        [StringLength(maximumLength: 409600)]
+        [StringLength(maximumLength: 40960)]
         [Required, Column("cells")]
-        private string _Cells { get; set; }
+        public string _Cells { get; set; }
 
         /// <summary>
         /// 区块里的格子数据_Cells 22*14 个 排列方式:[x][y]
