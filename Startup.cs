@@ -14,6 +14,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog.Formatting.Compact;
+using StackExchange.Redis;
+using StackExchange.Redis.Extensions.Core;
+using StackExchange.Redis.Extensions.Core.Abstractions;
+using StackExchange.Redis.Extensions.Core.Configuration;
+using StackExchange.Redis.Extensions.Core.Implementations;
+using StackExchange.Redis.Extensions.Newtonsoft;
 using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
@@ -86,11 +92,7 @@ namespace BlockRPGBackend
 
             #region Swagger
             app.UseSwagger();
-            app.UseSwaggerUI(
-                c =>
-                {
-                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
-                });//配置Swagger
+            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1"));//配置Swagger
             #endregion 
 
             #region 构建数据库上下文实例
@@ -101,7 +103,17 @@ namespace BlockRPGBackend
 
             #region WebSocket
 
-            var _Sessions = new List<WSAPI.Session>();
+            //var sessions = new List<WSAPI.Session>();
+            //var conn = ConnectionMultiplexer.Connect(Configuration.GetValue<string>("RedisConnectionString"));
+            //conn.GetDatabase();
+            var serializer = new NewtonsoftSerializer();
+            var redisconfiguration=new RedisConfiguration();
+            Configuration.Bind("Redis",redisconfiguration);
+            var cacheClient = new RedisCacheClient(new RedisCacheConnectionPoolManager(redisconfiguration), serializer,redisconfiguration);
+
+            var redis = cacheClient.GetDbFromConfiguration();
+
+            //redis.HashSet("TestHash", new HashEntry[] { new HashEntry("123", "12") });
 
             var webSocketOptions = new WebSocketOptions()
             {
@@ -124,7 +136,8 @@ namespace BlockRPGBackend
                     return;
                 }
                 var ws = await context.WebSockets.AcceptWebSocketAsync();
-                await WSAPI.Server.addSession(context.Connection.RemoteIpAddress.ToString(), ws, dbcontext);
+
+                await WSAPI.Server.addSession(context.Connection.RemoteIpAddress.ToString(), ws, dbcontext, Configuration, redis);
             });
             #endregion
 
