@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog.Formatting.Compact;
 using StackExchange.Redis;
+using StackExchange.Redis.Extensions;
 using StackExchange.Redis.Extensions.Core;
 using StackExchange.Redis.Extensions.Core.Abstractions;
 using StackExchange.Redis.Extensions.Core.Configuration;
@@ -52,8 +53,12 @@ namespace BlockRPGBackend
         public void ConfigureServices(IServiceCollection services)
         {
             services.Configure<IConfiguration>(Configuration);
+
+            services.AddSignalR();//和ws相关
+
             //这里就是填写数据库的连接字符串
             services.AddDbContext<MyDbContext>(options => options.UseMySql(Configuration.GetConnectionString("DefaultConnection")));
+
             #region 配置Swagger
             var basepath = Path.GetDirectoryName(typeof(Program).Assembly.Location);//获取应用程序所在目录（绝对，不受工作目录影响，建议采用此方法获取路径）
             var xmlpath = Path.Combine(basepath, Assembly.GetEntryAssembly().GetName().Name + ".xml");
@@ -76,7 +81,20 @@ namespace BlockRPGBackend
                 c.IncludeXmlComments(xmlpath);
             });
             #endregion
-            services.AddSignalR();
+
+            #region 配置Redis
+            var redisconfiguration = new RedisConfiguration();
+            Configuration.Bind("Redis", redisconfiguration);
+            services.AddSingleton(redisconfiguration);
+            services.AddSingleton<IRedisCacheClient, RedisCacheClient>();
+            services.AddSingleton<IRedisCacheConnectionPoolManager, RedisCacheConnectionPoolManager>();
+            services.AddSingleton<IRedisDefaultCacheClient, RedisDefaultCacheClient>();
+            services.AddSingleton<ISerializer, NewtonsoftSerializer>();
+
+            #endregion
+
+            services.AddTransient<Helpers.ITaskQueue, Helpers.TaskQueue>();
+
             services.AddMvc();
         }
 
@@ -101,26 +119,28 @@ namespace BlockRPGBackend
             var dbcontext = new MyDbContext(builder.Options);
             #endregion
 
+            #region redis
+            var serializer = new NewtonsoftSerializer();
+            var redisconfiguration = new RedisConfiguration();
+            Configuration.Bind("Redis", redisconfiguration);
+            var cacheClient = new RedisCacheClient(new RedisCacheConnectionPoolManager(redisconfiguration), serializer, redisconfiguration);
+            var redis = cacheClient.GetDbFromConfiguration();
+            //var conn = ConnectionMultiplexer.Connect(Configuration.GetValue<string>("RedisConnectionString"));
+            //conn.GetDatabase();
+            //redis.HashSet("TestHash", new HashEntry[] { new HashEntry("123", "12") });
+
+            #endregion
+
             #region WebSocket
 
             //var sessions = new List<WSAPI.Session>();
-            //var conn = ConnectionMultiplexer.Connect(Configuration.GetValue<string>("RedisConnectionString"));
-            //conn.GetDatabase();
-            var serializer = new NewtonsoftSerializer();
-            var redisconfiguration=new RedisConfiguration();
-            Configuration.Bind("Redis",redisconfiguration);
-            var cacheClient = new RedisCacheClient(new RedisCacheConnectionPoolManager(redisconfiguration), serializer,redisconfiguration);
-
-            var redis = cacheClient.GetDbFromConfiguration();
-
-            //redis.HashSet("TestHash", new HashEntry[] { new HashEntry("123", "12") });
 
             var webSocketOptions = new WebSocketOptions()
             {
                 KeepAliveInterval = TimeSpan.FromSeconds(300),
                 ReceiveBufferSize = 4 * 1024
             };
-
+            //app.UseTaskQueue = null;
             app.UseWebSockets(webSocketOptions);
 
             app.Use(async (context, next) =>

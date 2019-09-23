@@ -12,7 +12,11 @@ namespace BlockRPGBackend.WSAPI.Enums
         /// <summary>
         /// 客户端主动查询Blocks
         /// </summary>
-        queryBlocks = 1
+        queryBlocks = 1,
+        /// <summary>
+        /// 登录请求/登录结果返回
+        /// </summary>
+        Login = 2,
     }//End MessageType
 
 }//End Namespace

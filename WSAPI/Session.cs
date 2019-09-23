@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using System.Linq;
 using StackExchange.Redis;
 using StackExchange.Redis.Extensions.Core.Abstractions;
+using BlockRPGBackend.Helpers;
 
 namespace BlockRPGBackend.WSAPI
 {
@@ -24,8 +25,8 @@ namespace BlockRPGBackend.WSAPI
         private CancellationTokenSource CancellationTokenSource = new CancellationTokenSource();
         private Random _Ran;
         private IRedisDatabase _Redis;
-
         private TaskQueue _MapAccessQueue = null;
+        private Modules.Users _user = null;
 
         /// <summary>
         /// 
@@ -87,10 +88,8 @@ namespace BlockRPGBackend.WSAPI
                 {
                     for (int y = 0; y < param.H; y++)
                     {
-
                         rediswaithandles.Add(_Redis.HashGetAsync<Modules.Blocks>("Blocks", $"{param.MapID}:{param.X + x}:{param.Y + y}"));
                     }
-
                 }
             }
             //一次性等待所有redis查询任务完成
@@ -159,6 +158,16 @@ namespace BlockRPGBackend.WSAPI
         /// <summary>
         /// 
         /// </summary>
+        /// <param name="param">{ MessageType:1, Params:"{  X:0,  Y:0,  W:3,  H:3,  MapID:0 }"}</param>
+        /// <returns></returns>
+        private async Task<Modules.Users> Login(Messages.Login param)
+        {
+
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
         /// <returns></returns>
         public async Task Run()
         {
@@ -173,15 +182,36 @@ namespace BlockRPGBackend.WSAPI
                 {
                     #region 查询方块
                     case Enums.MessageType.queryBlocks:
-                        var param = JsonConvert.DeserializeObject<Messages.QueryBlocks>(msgbase.Params);
-                        var blocks = await _MapAccessQueue.AddTaskAsync2(queryBlocks, param);
-                        var messageresult = new Messages.MessageBase()
                         {
-                            MessageType = Enums.MessageType.queryBlocks,
-                            Params = JsonConvert.SerializeObject(blocks)
-                        };
-                        await _WS.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(messageresult))), WebSocketMessageType.Text, true, CancellationTokenSource.Token);
-                        break;
+                            var param = JsonConvert.DeserializeObject<Messages.QueryBlocks>(msgbase.Params);
+                            var blocks = await _MapAccessQueue.AddTaskAsync2(queryBlocks, param);
+                            var messageresult = new Messages.MessageBase()
+                            {
+                                MessageType = Enums.MessageType.queryBlocks,
+                                Params = JsonConvert.SerializeObject(blocks)
+                            };
+                            await _WS.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(messageresult))), WebSocketMessageType.Text, true, CancellationTokenSource.Token);
+                            break;
+                        }
+                    #endregion
+                    #region 登录
+                    case Enums.MessageType.Login:
+                        {
+                            var messageresult = await Task.Factory.StartNew<Messages.MessageBaseResponse>(async () =>
+                            {
+                                var param = JsonConvert.DeserializeObject<Messages.Login>(msgbase.Params);
+                                if (_user != null) return new Messages.MessageBaseResponse() { Code = -1, Msg = "您已经登录过了!" };
+                                //首先在redis里查询
+                                _user = await _Redis.HashGetAsync<Modules.Users>("Users", param.Token);
+                                if (_user == null) return new Messages.MessageBaseResponse() { Code = -1, Msg = "无效的Token!" };
+
+
+                                _user = await _MapAccessQueue.AddTaskAsync2(Login, param);
+                                return new Messages.MessageBaseResponse() { Code = 0, Msg = "登录成功!" };
+                            });
+                            await _WS.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(messageresult))), WebSocketMessageType.Text, true, CancellationTokenSource.Token);
+                            break;
+                        }
                     #endregion
                     default://默认
                         break;

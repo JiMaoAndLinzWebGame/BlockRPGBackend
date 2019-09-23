@@ -4,12 +4,44 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace BlockRPGBackend.WSAPI
+namespace BlockRPGBackend.Helpers
 {
     /// <summary>
     /// 
     /// </summary>
-    public class TaskQueue : IDisposable
+    public interface ITaskQueue
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="task"></param>
+        /// <param name="args"></param>
+        void AddTask<T>(Action<T> task, T args);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="task"></param>
+        /// <param name="argv"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="TReturn"></typeparam>
+        /// <returns></returns>
+        Task<TReturn> AddTaskAsync<T, TReturn>(Func<T, TReturn> task, T argv);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="task"></param>
+        /// <param name="argv"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="TReturn"></typeparam>
+        /// <returns></returns>
+        Task<TReturn> AddTaskAsync2<T, TReturn>(Func<T, Task<TReturn>> task, T argv);
+    }
+    /// <summary>
+    /// 
+    /// </summary>
+    public class TaskQueue : IDisposable, ITaskQueue
     {
         private ConcurrentQueue<Action> _taskqueue = new ConcurrentQueue<Action>();
         private bool _allowaddtask = true;

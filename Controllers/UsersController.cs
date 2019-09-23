@@ -12,6 +12,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;
+using StackExchange.Redis.Extensions.Core.Abstractions;
+using System.Threading.Tasks;
 
 namespace BlockRPGBackend.Controllers
 {
@@ -22,10 +24,11 @@ namespace BlockRPGBackend.Controllers
     [ApiController]
     public class UsersController : ControllerBase
     {
-        private readonly MyDbContext DbContext;
-        private readonly IConfiguration Configuration;
-        private readonly ILogger<UsersController> Log;
-        private readonly static SHA256 SHA256hash = SHA256.Create();
+        private readonly MyDbContext _DbContext;
+        private readonly IConfiguration _Configuration;
+        private readonly ILogger<UsersController> _Log;
+        private readonly IRedisDatabase _Redis;
+        private readonly static SHA256 _SHA256hash = SHA256.Create();
 
         /// <summary>
         /// 
@@ -33,16 +36,18 @@ namespace BlockRPGBackend.Controllers
         /// <param name="dbcontext"></param>
         /// <param name="configuration"></param>
         /// <param name="log"></param>
-        public UsersController(MyDbContext dbcontext, IConfiguration configuration, ILogger<UsersController> log)
+        /// <param name="redis"></param>
+        public UsersController(MyDbContext dbcontext, IConfiguration configuration, ILogger<UsersController> log, IRedisCacheClient redis)
         {
-            DbContext = dbcontext;
-            Configuration = configuration;
-            Log = log;
+            _DbContext = dbcontext;
+            _Configuration = configuration;
+            _Log = log;
+            _Redis = redis.GetDbFromConfiguration();
         }
 
         private static string ComputeSha256Hash(string rawData)
         {
-            var bytes = SHA256hash.ComputeHash(Encoding.UTF8.GetBytes(rawData));
+            var bytes = _SHA256hash.ComputeHash(Encoding.UTF8.GetBytes(rawData));
             return string.Join("", from b in bytes select b.ToString("x2"));
         }
 
@@ -54,10 +59,10 @@ namespace BlockRPGBackend.Controllers
         [HttpPost]
         public RegisterResponse Register(RegisterRequest request)
         {
-            var user = DbContext.Users.FirstOrDefault(x => x.UserName == request.UserInfo.UserName);
+            var user = _DbContext.Users.FirstOrDefault(x => x.UserName == request.UserInfo.UserName);
             if (user != null) return new RegisterResponse() { Code = -1, Msg = "用户已存在" };
 
-            var salt = Configuration.GetValue<string>("salt");
+            var salt = _Configuration.GetValue<string>("salt");
             user = new Modules.Users();
             user.UserName = request.UserInfo.UserName;
             user.Email = request.UserInfo.Email;
@@ -67,8 +72,9 @@ namespace BlockRPGBackend.Controllers
             user.LastLoginTime = DateTime.Now;
             user.status = 0;
             user.Amount = 0;
-            DbContext.Users.Add(user);
-            DbContext.SaveChanges();
+            _DbContext.Users.Add(user);
+            _DbContext.SaveChanges();
+
             #region 填充返回值
             return new RegisterResponse()
             {
@@ -84,32 +90,44 @@ namespace BlockRPGBackend.Controllers
         /// <param name="request"></param>
         /// <returns></returns>
         [HttpPost]
-        public LoginResponse Login(LoginRequest request)
+        public async Task<LoginResponse> Login(LoginRequest request)
         {
             Modules.Users user = null;
-            if (request.UserInfo.UserID != null) DbContext.Users.FirstOrDefault(x => x.Id == request.UserInfo.UserID);
-            if (!string.IsNullOrWhiteSpace(request.UserInfo.UserName) && user != null) DbContext.Users.FirstOrDefault(x => x.UserName == request.UserInfo.UserName);
+            Func<Task<LoginResponse>> f = async () =>
+              {
+                  if (request.UserInfo.UserID != null) user = _DbContext.Users.FirstOrDefault(x => x.Id == request.UserInfo.UserID);
+                  if (!string.IsNullOrWhiteSpace(request.UserInfo.UserName) && user != null) user = _DbContext.Users.FirstOrDefault(x => x.UserName == request.UserInfo.UserName);
+                  if (user == null) return new LoginResponse() { Code = -1, Msg = "用户不存在" };
+                  var salt = _Configuration.GetValue<string>("salt");
+                  var password = string.IsNullOrWhiteSpace(salt) ? request.UserInfo.Password : ComputeSha256Hash(salt + request.UserInfo.Password);
+                  if (user.Password != password) return new LoginResponse() { Code = -1, Msg = "密码不正确" };
 
-            if (user == null) return new LoginResponse() { Code = -1, Msg = "用户不存在" };
-            var salt = Configuration.GetValue<string>("salt");
-            var password = string.IsNullOrWhiteSpace(salt) ? request.UserInfo.Password : ComputeSha256Hash(salt + request.UserInfo.Password);
-            if (user.Password != password) return new LoginResponse() { Code = -1, Msg = "密码不正确" };
-            user.Token = ComputeSha256Hash(salt + DateTime.Now.ToString("yyyyMMddHHmmss"));
-            DbContext.SaveChanges();
+                  //如果用户的Token不是空的,尝试从redis清理旧的
+                  if (!string.IsNullOrWhiteSpace(user.Token))
+                  {
+                      user = await _Redis.HashGetAsync<Modules.Users>("Users", user.Token);
+                      await _Redis.HashDeleteAsync("Users", user.Token);
+                  }
+                  user.Token = ComputeSha256Hash(salt + DateTime.Now.ToString("yyyyMMddHHmmss"));
+                  user.LastLoginTime = DateTime.Now;
+                  await _Redis.HashSetAsync<Modules.Users>("Users", user.Token, user);
+                  await _DbContext.SaveChangesAsync();
+                  return new LoginResponse()
+                  {
+                      Code = 0,
+                      Msg = "成功!",
+                      UserInfo = new UserInfo()
+                      {
+                          UserID = user.Id,
+                          UserName = user.UserName,
+                          Email = user.Email,
+                          Amount = user.Amount,
+                          Token = user.Token,
+                      }
+                  };
+              };
             #region 填充返回值
-            return new LoginResponse()
-            {
-                Code = 0,
-                Msg = "成功!",
-                UserInfo = new UserInfo()
-                {
-                    UserID = user.Id,
-                    UserName = user.UserName,
-                    Email = user.Email,
-                    Amount = user.Amount,
-                    Token = user.Token,
-                }
-            };
+            return await f();
             #endregion
         }
     }//End Class
